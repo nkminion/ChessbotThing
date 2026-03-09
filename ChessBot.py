@@ -101,6 +101,11 @@ class ChessNet(nn.Module):
 		SpatialEval = torch.sum(RawBoard*self.PST,dim=(1,2,3)).view(-1,1)
 
 		return ComplexEval+SpatialEval
+	
+model = ChessNet()
+model.to(device)
+model.load_state_dict(torch.load('ChessModel.pth',map_location=device)['ModelState'])
+model.eval()
 
 class ChessBot:
 	def __init__(self):
@@ -116,13 +121,6 @@ class ChessBot:
 						]
 		self.BotTimeLeft = 600
 		self.Increment = 5
-		self.model = ChessNet()
-		self.model.to(device)
-		if torch.cuda.is_available():
-			self.model.load_state_dict(torch.load('ChessModel.pth')['ModelState'])
-		else:
-			self.model.load_state_dict(torch.load('ChessModel.pth',map_location=torch.device('cpu'))['ModelState'])
-		self.model.eval()
 
 	def ProcessChessData(self,FENString):
 		tensor = torch.zeros((16,8,8), dtype=torch.float32)
@@ -337,7 +335,7 @@ class ChessBot:
 				BatchedTensor = torch.stack(WaitingTensors,dim=0).to(device)
 
 				with torch.no_grad():
-					scores = self.model(BatchedTensor)
+					scores = model(BatchedTensor)
 
 				for i in range(len(WaitingBranches)):
 					branch = WaitingBranches[i]
@@ -389,3 +387,21 @@ class ChessBot:
 		FinalTime = min(TargetTime,AbsoluteMax)
 
 		return max(FinalTime,0.1)
+	
+
+GlobalBot = ChessBot()
+def GetBestMove(FenString: str, TimeRem: float, Increment: float) -> str:
+	GlobalBot.ChessBoard.set_fen(FenString)
+	Move = GlobalBot.GetBookMove(GlobalBot.ChessBoard)
+	if Move:
+		return Move.uci()
+	MaxTime = GlobalBot.CalculateMaxTime(TimeRem,Increment)
+	IsWhite = GlobalBot.ChessBoard.turn == chess.WHITE
+	Move = GlobalBot.IterativeDeepeningSearch(
+		board=GlobalBot.ChessBoard,
+		MaxTime=MaxTime,
+		MaxDepth=100,
+		MaximisingPlayer=IsWhite
+	)
+	print('Returning move')
+	return Move.uci()
