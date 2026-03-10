@@ -60,6 +60,14 @@ p
   align-items: center;
 }
 
+.endscreen
+{
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+}
+
 button
 {
 	height: 50px;
