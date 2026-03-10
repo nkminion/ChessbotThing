@@ -329,6 +329,21 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  function ResetGame()
+  {
+    ChessGame.reset();
+    SetChessPosition(ChessGame.fen());
+    SetWhiteTime(600);
+    SetBlackTime(600);
+    SetTimeOutStatus(null);
+    SetLastMove(null);
+    SetMoveFrom('');
+    SetOptionSquares({});
+    SetPendingMove(null);
+    SetPromotionSquare(null);
+    SetAppPhase('setup');
+  }
+
   const CombinedSquares = {};
   if (LastMove)
   {
@@ -461,7 +476,7 @@ function App() {
           {TimeoutStatus}
         </p>
         <div>
-          <button onClick={() => SetAppPhase('setup')}>Return</button>
+          <button onClick={() => ResetGame()}>Return</button>
           <button onClick={() => DownloadPGN()}>Save</button>
         </div>
       </div>
