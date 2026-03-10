@@ -8,6 +8,14 @@ import './App.css'
 function App() {
   const ChessGameRef = useRef(new Chess());
   const ChessGame = ChessGameRef.current;
+
+  const [AppPhase, SetAppPhase] = useState('setup');
+
+  const [Player1Name, SetPlayer1Name] = useState('');
+  const [Player1Mode, SetPlayer1Mode] = useState('human');
+  const [Player2Name, SetPlayer2Name] = useState('');
+  const [Player2Mode, SetPlayer2Mode] = useState('human');
+
   const [ChessPosition,SetChessPosition] = useState(ChessGame.fen());
   const [MoveFrom,SetMoveFrom] = useState('');
   const [OptionSquares,SetOptionSquares] = useState({});
@@ -20,7 +28,7 @@ function App() {
   const Increment = 5;
 
   useEffect(() => {
-    if (ChessGame.isGameOver() || TimeoutStatus)
+    if (ChessGame.isGameOver() || TimeoutStatus || AppPhase == 'setup')
     {
       return;
     }
@@ -63,7 +71,9 @@ function App() {
   }, [WhiteTime,BlackTime]);
 
   useEffect(() => {
-    if (ChessGame.isGameOver() || ChessGame.turn() === 'w')
+    const CurrentTurn = ChessGame.turn()
+    const CurrentMode = CurrentTurn === 'w' ? Player1Mode : Player2Mode
+    if (ChessGame.isGameOver() || CurrentMode === 'human' || AppPhase === 'setup')
     {
       return;
     }
@@ -77,7 +87,8 @@ function App() {
         const PayLoad = {
           FenString: ChessGame.fen(),
           TimeRem: BlackTime,
-          Increment: Increment
+          Increment: Increment,
+          Mode: CurrentMode
         };
         const response = await fetch('http://localhost:8000/engine/move', {
           method: 'POST',
@@ -93,7 +104,14 @@ function App() {
           to: EngineMove.slice(2,4),
           promotion: EngineMove[4] ? EngineMove[4] : undefined
         });
-        SetBlackTime((prev) => prev + 5);
+        if (CurrentTurn === 'w')
+        {
+          SetWhiteTime((prev) => prev+Increment);
+        }
+        else
+        {
+          SetBlackTime((prev) => prev+Increment);
+        }
         SetLastMove({
           from: EngineMove.slice(0,2),
           to: EngineMove.slice(2,4)
@@ -106,7 +124,7 @@ function App() {
       }
     };
     FetchBotMove();
-  },[ChessPosition]);
+  },[ChessPosition,AppPhase]);
 
 
   function OnPromotionPieceSelect(piece)
@@ -186,14 +204,16 @@ function App() {
     {
       return;
     }
-    if (ChessGame.turn() === 'b')
+    const IsWhiteTurn = ChessGame.turn() === 'w';
+    const CurrentOccupant = IsWhiteTurn ? Player1Mode : Player2Mode;
+    if (CurrentOccupant !== 'human')
     {
       return;
     }
     if (!MoveFrom)
     {
       const ClickedPiece = ChessGame.get(square);
-      if (!ClickedPiece || ClickedPiece.color === 'b')
+      if (!ClickedPiece || ClickedPiece.color !== ChessGame.turn())
       {
         return;
       }
@@ -232,7 +252,14 @@ function App() {
         from: MoveFrom,
         to: square,
       });
-      SetWhiteTime((prev) => prev + 5);
+      if (ChessGame.turn() === 'b')
+      {
+        SetWhiteTime((prev) => prev+Increment);
+      }
+      else
+      {
+        SetBlackTime((prev) => prev+Increment);
+      }
       SetLastMove({
         from: MoveFrom,
         to: square,
@@ -293,10 +320,54 @@ function App() {
   };
 
 
+  if (AppPhase === 'setup')
+  {
+    return (
+      <>
+        <div className='matchmaking'>
+          <h1>
+            ChessBots
+          </h1>
+          <div className='players'>
+            <div className='player'>
+              <input
+                type='text'
+                placeholder='Enter player 1 name: '
+                onChange={(e) => SetPlayer1Name(e.target.value)}
+              />
+              <select onChange={(e) => SetPlayer1Mode(e.target.value)}>
+                <option value='human'>Human</option>
+                <option value='ChessNet'>ChessNet</option>
+                <option value='sunfish'>Sunfish</option>
+              </select>
+            </div>
+            <div className='player'>
+              <input
+                type='text'
+                placeholder='Enter player 2 name: '
+                onChange={(e) => SetPlayer2Name(e.target.value)}
+              />
+              <select onChange={(e) => SetPlayer2Mode(e.target.value)}>
+                <option value='human'>Human</option>
+                <option value='ChessNet'>ChessNet</option>
+                <option value='sunfish'>Sunfish</option>
+              </select>
+            </div>
+          </div>
+          <button onClick={() => {
+            if (Player1Name !== '' && Player2Name !== '')
+            {
+              SetAppPhase('playing')
+            }
+          }}>Start</button>
+        </div>
+      </>
+    );
+  }
   return (
     <>
     <div className='Bar'>
-      <p>ChessBot</p>
+      <p>{Player2Name}</p>
       <div className='Time'>
         {FormatTime(BlackTime)}
       </div>
@@ -327,7 +398,7 @@ function App() {
       }
     </div>
     <div className='Bar'>
-      <p>Player</p>
+      <p>{Player1Name}</p>
       <div className='Time'>
         {FormatTime(WhiteTime)}
       </div>

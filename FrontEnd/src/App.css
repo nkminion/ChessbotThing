@@ -37,3 +37,81 @@ p
   justify-content: center;
   align-items: center;
 }
+
+.players
+{
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.matchmaking
+{
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+}
+
+.player
+{
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+button
+{
+	height: 50px;
+	width: 100px;
+	margin: 10px;
+	transition: all 0.5s;
+	border: 3px solid #0083FF;
+	border-radius: 5%;
+	background-color: #161616;
+	color: aliceblue;
+	font-family: 'Lato Light';
+	font-size: 18px;
+}
+
+button:hover
+{
+	transform: scale(1.2);
+	border-color: #5d00ff;
+}
+
+input
+{
+  height: 50px;
+  width: 200px;
+  background-color: #161616;
+  border: 3px solid #0083FF;
+  font-size: 18px;
+  font-family: 'Lato Light';
+  transition: border-color 0.5s;
+  border-radius: 5%;
+}
+
+input:focus
+{
+  border-color: #5d00ff;
+  outline: none;
+}
+
+select
+{
+  height: 50px;
+  width: 100px;
+  background-color: #161616;
+  border: 3px solid #0083FF;
+  font-size: 18px;
+  font-family: 'Lato Light';
+  transition: border-color 0.5s;
+  border-radius: 5%;
+}
+
+select:focus
+{
+  border-color: #5d00ff;
+  outline: none;
+}
