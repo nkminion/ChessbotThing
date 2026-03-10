@@ -28,7 +28,7 @@ function App() {
   const Increment = 5;
 
   useEffect(() => {
-    if (ChessGame.isGameOver() || TimeoutStatus || AppPhase == 'setup')
+    if (ChessGame.isGameOver() || TimeoutStatus || AppPhase === 'setup')
     {
       return;
     }
@@ -43,6 +43,22 @@ function App() {
       }
     },1000);
     return () => clearInterval(Timer);
+  }, [ChessPosition,AppPhase,TimeoutStatus]);
+
+  useEffect(() => {
+    if (ChessGame.isGameOver())
+    {
+      if (ChessGame.isCheckmate())
+      {
+        const Winner = ChessGame.turn === 'w' ? Player2Name : Player1Name;
+        SetTimeOutStatus(`Checkmate! ${Winner} won!`);
+      }
+      else if (ChessGame.isDraw())
+      {
+        SetTimeOutStatus('Draw!');
+      }
+      SetAppPhase('end');
+    }
   }, [ChessPosition]);
 
   useEffect(() => {
@@ -56,6 +72,7 @@ function App() {
       {
         SetTimeOutStatus('Black wins on time!');
       }
+      SetAppPhase('end');
     }
     if (BlackTime <= 0)
     {
@@ -67,6 +84,7 @@ function App() {
       {
         SetTimeOutStatus('White wins on time!');
       }
+      SetAppPhase('end');
     }
   }, [WhiteTime,BlackTime]);
 
@@ -286,6 +304,31 @@ function App() {
     return `${mins}:${secs}`;
   };
 
+  function DownloadPGN()
+  {
+    const PGNData = ChessGame.pgn({
+      newline: '\n',
+      headers: {
+        White: Player1Name,
+        Black: Player2Name,
+        Date: new Date().toISOString().split('T')['0'],
+        Result: TimeoutStatus ? 'Timeout/Draw' : 'Standard'
+      }
+    });
+
+    const blob = new Blob([PGNData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${Player1Name}vs${Player2Name}.pgn`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   const CombinedSquares = {};
   if (LastMove)
   {
@@ -364,45 +407,64 @@ function App() {
       </>
     );
   }
+  else if (AppPhase === 'playing')
+  {
+    return (
+      <>
+      <div className='Bar'>
+        <p>{Player2Name}</p>
+        <div className='Time'>
+          {FormatTime(BlackTime)}
+        </div>
+      </div>
+      <div>
+        <Chessboard options={ChessBoardOptions}/>
+        {
+          PendingMove && (
+            <div style={{
+              position: 'absolute',
+              top: '37%',
+              left: '74%',
+              transform: 'translate(-50%,-50%)',
+              background: 'rgba(0,0,0,0.9)',
+              padding: '20px',
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}>
+              <button onClick={() => OnPromotionPieceSelect('q')}>Queen</button>
+              <button onClick={() => OnPromotionPieceSelect('r')}>Rook</button>
+              <button onClick={() => OnPromotionPieceSelect('n')}>Knight</button>
+              <button onClick={() => OnPromotionPieceSelect('b')}>Bishop</button>
+              <button onClick={() => OnPromotionPieceSelect(null)}>Cancel</button>
+            </div>
+          )
+        }
+      </div>
+      <div className='Bar'>
+        <p>{Player1Name}</p>
+        <div className='Time'>
+          {FormatTime(WhiteTime)}
+        </div>
+      </div>
+      </>
+    );
+  }
   return (
     <>
-    <div className='Bar'>
-      <p>{Player2Name}</p>
-      <div className='Time'>
-        {FormatTime(BlackTime)}
+      <div className='endscreen'>
+        <h1>
+            ChessBots
+        </h1>
+        <p>
+          {TimeoutStatus}
+        </p>
+        <div>
+          <button onClick={() => SetAppPhase('setup')}>Return</button>
+          <button onClick={() => DownloadPGN()}>Save</button>
+        </div>
       </div>
-    </div>
-    <div>
-      <Chessboard options={ChessBoardOptions}/>
-      {
-        PendingMove && (
-          <div style={{
-            position: 'absolute',
-            top: '37%',
-            left: '74%',
-            transform: 'translate(-50%,-50%)',
-            background: 'rgba(0,0,0,0.9)',
-            padding: '20px',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}>
-            <button onClick={() => OnPromotionPieceSelect('q')}>Queen</button>
-            <button onClick={() => OnPromotionPieceSelect('r')}>Rook</button>
-            <button onClick={() => OnPromotionPieceSelect('n')}>Knight</button>
-            <button onClick={() => OnPromotionPieceSelect('b')}>Bishop</button>
-            <button onClick={() => OnPromotionPieceSelect(null)}>Cancel</button>
-          </div>
-        )
-      }
-    </div>
-    <div className='Bar'>
-      <p>{Player1Name}</p>
-      <div className='Time'>
-        {FormatTime(WhiteTime)}
-      </div>
-    </div>
     </>
   );
 }
