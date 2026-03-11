@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ChessBot import GetBestMove
+from MCTSBot import GetBestMove as GetBestMoveMCTS
 import sunfish
 import sunfish_uci
 import time
@@ -29,6 +30,8 @@ def CalculateMove(request: MoveReq):
 	match request.Mode:
 		case 'ChessNet':
 			EngineMove = GetBestMove(request.FenString,request.TimeRem,request.Increment)
+		case 'MCTS':
+			EngineMove = GetBestMoveMCTS(request.FenString,request.TimeRem,request.Increment)
 		case 'sunfish':
 			FenParts = request.FenString.split()
 			CurrentPos = sunfish_uci.from_fen(*FenParts)
