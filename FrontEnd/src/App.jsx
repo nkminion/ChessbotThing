@@ -396,6 +396,7 @@ function App() {
               <select onChange={(e) => SetPlayer1Mode(e.target.value)}>
                 <option value='human'>Human</option>
                 <option value='ChessNet'>ChessNet</option>
+                <option value='MCTS'>MCTS</option>
                 <option value='sunfish'>Sunfish</option>
               </select>
             </div>
@@ -408,6 +409,7 @@ function App() {
               <select onChange={(e) => SetPlayer2Mode(e.target.value)}>
                 <option value='human'>Human</option>
                 <option value='ChessNet'>ChessNet</option>
+                <option value='MCTS'>MCTS</option>
                 <option value='sunfish'>Sunfish</option>
               </select>
             </div>
