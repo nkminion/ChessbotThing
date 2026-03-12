@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ChessBot import GetBestMove
@@ -6,6 +7,7 @@ from MCTSBot import GetBestMove as GetBestMoveMCTS
 import sunfish
 import sunfish_uci
 import time
+import chess
 
 sunfish_uci.sunfish = sunfish
 
@@ -36,10 +38,11 @@ def CalculateMove(request: MoveReq):
 			FenParts = request.FenString.split()
 			CurrentPos = sunfish_uci.from_fen(*FenParts)
 			Hist = [CurrentPos]
+			Board = chess.Board(request.FenString)
 
 			MaxTime = (request.TimeRem/40.0) + request.Increment
 			AbsoluteMax = (request.TimeRem * 0.8) - 0.1
-			FinalTime = min(MaxTime,AbsoluteMax)
+			FinalTime = max(min(MaxTime,AbsoluteMax),0.1)
 
 			StartTime = time.time()
 			Searcher = sunfish.Searcher()
@@ -53,4 +56,9 @@ def CalculateMove(request: MoveReq):
 				
 			IsWhiteTurn = (sunfish_uci.get_color(CurrentPos) == sunfish_uci.WHITE)
 			EngineMove = sunfish_uci.render_move(EngineMove,IsWhiteTurn)
+			if EngineMove == '(none)':
+				LegalMoves = list(Board.legal_moves)
+				EngineMove = LegalMoves[0].uci() if LegalMoves else '0000'
+		case _:
+			raise HTTPException(status_code=400,detail=f'Unsupported mode: {request.Mode}')
 	return {'BestMove':EngineMove}

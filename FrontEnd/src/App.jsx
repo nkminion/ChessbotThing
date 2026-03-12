@@ -50,7 +50,7 @@ function App() {
     {
       if (ChessGame.isCheckmate())
       {
-        const Winner = ChessGame.turn === 'w' ? Player2Name : Player1Name;
+        const Winner = ChessGame.turn() === 'w' ? Player2Name : Player1Name;
         SetTimeOutStatus(`Checkmate! ${Winner} won!`);
       }
       else if (ChessGame.isDraw())
@@ -102,9 +102,10 @@ function App() {
     const FetchBotMove = async () => {
       try
       {
+        const TimeRemaining = CurrentTurn === 'w' ? WhiteTime : BlackTime;
         const PayLoad = {
           FenString: ChessGame.fen(),
-          TimeRem: BlackTime,
+          TimeRem: TimeRemaining,
           Increment: Increment,
           Mode: CurrentMode
         };
@@ -113,9 +114,17 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(PayLoad)
         });
+        if (!response.ok)
+        {
+          throw new Error(`Engine request failed with status ${response.status}`);
+        }
 
         const data = await response.json();
         const EngineMove = data.BestMove;
+        if (!EngineMove || EngineMove === '0000' || EngineMove === '(none)')
+        {
+          throw new Error(`Engine returned invalid move: ${EngineMove}`);
+        }
         console.log('Fetched!');
         ChessGame.move({
           from: EngineMove.slice(0,2),
@@ -165,6 +174,14 @@ function App() {
         from: PendingMove['from'],
         to: PendingMove['to'],
       });
+      if (ChessGame.turn() === 'b')
+      {
+        SetWhiteTime((prev) => prev+Increment);
+      }
+      else
+      {
+        SetBlackTime((prev) => prev+Increment);
+      }
       SetChessPosition(ChessGame.fen());
       SetPromotionSquare(null);
       SetPendingMove(null);
