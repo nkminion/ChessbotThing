@@ -16,7 +16,7 @@ function PlayerBar({ side, player, time, isActive }) {
   )
 }
 
-export function BoardViewport({ state, actions, squareStyles }) {
+export function BoardViewport({ state, actions, squareStyles, whiteTime, blackTime }) {
   const activeSide = state.phase === 'end' ? null : state.positionFen.split(' ')[1] === 'w' ? 'white' : 'black'
 
   return (
@@ -25,14 +25,14 @@ export function BoardViewport({ state, actions, squareStyles }) {
         <PlayerBar
           side="black"
           player={state.players.black}
-          time={state.blackTime}
+          time={blackTime}
           isActive={activeSide === 'black'}
         />
         <Board2D state={state} actions={actions} squareStyles={squareStyles} />
         <PlayerBar
           side="white"
           player={state.players.white}
-          time={state.whiteTime}
+          time={whiteTime}
           isActive={activeSide === 'white'}
         />
       </div>

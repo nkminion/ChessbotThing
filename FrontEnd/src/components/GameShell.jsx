@@ -17,7 +17,13 @@ export function GameShell() {
     <div className="game-shell">
       <div className="match-layout">
         <GameHUD state={state} actions={actions} />
-        <BoardViewport state={state} actions={actions} squareStyles={derived.squareStyles} />
+        <BoardViewport
+          state={state}
+          actions={actions}
+          squareStyles={derived.squareStyles}
+          whiteTime={derived.whiteTime}
+          blackTime={derived.blackTime}
+        />
         <MatchSidebar state={state} actions={actions} />
       </div>
       <PromotionModal pendingPromotion={state.pendingPromotion} onSelect={actions.handlePromotion} />

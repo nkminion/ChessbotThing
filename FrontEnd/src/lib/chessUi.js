@@ -1,9 +1,16 @@
 import { Chess } from 'chess.js'
 
-export function formatTime(totalSeconds) {
-  const safeSeconds = Math.max(0, totalSeconds)
-  const minutes = Math.floor(safeSeconds / 60)
-  const seconds = String(safeSeconds % 60).padStart(2, '0')
+export function formatTime(totalMilliseconds) {
+  const safeMilliseconds = Math.max(0, totalMilliseconds)
+  const totalSeconds = safeMilliseconds / 1000
+
+  if (totalSeconds < 10) {
+    return totalSeconds.toFixed(1)
+  }
+
+  const wholeSeconds = Math.ceil(totalSeconds)
+  const minutes = Math.floor(wholeSeconds / 60)
+  const seconds = String(wholeSeconds % 60).padStart(2, '0')
   return `${minutes}:${seconds}`
 }
 
