@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { DEFAULT_PRESET } from '../lib/gameConstants.js'
 import {
@@ -28,13 +28,98 @@ function createInitialState() {
     selectedSquare: '',
     legalTargets: [],
     pendingPromotion: null,
-    whiteTime: DEFAULT_PRESET.seconds,
-    blackTime: DEFAULT_PRESET.seconds,
+    whiteTime: DEFAULT_PRESET.seconds * 1000,
+    blackTime: DEFAULT_PRESET.seconds * 1000,
+    activeStartedAt: null,
     isEngineThinking: false,
     engineStatus: '',
     engineError: '',
     resultMessage: '',
   }
+}
+
+function getSquareColor(fileIndex, rankIndex) {
+  return (fileIndex + rankIndex) % 2
+}
+
+function getActiveSideFromFen(fen) {
+  return fen.split(' ')[1] === 'w' ? 'white' : 'black'
+}
+
+function getLiveClockTimes(state, now = Date.now()) {
+  const whiteTime = state.whiteTime
+  const blackTime = state.blackTime
+
+  if (!['playing', 'promotion'].includes(state.phase) || state.resultMessage || state.activeStartedAt === null) {
+    return {
+      whiteTime,
+      blackTime,
+    }
+  }
+
+  const elapsedMs = Math.max(0, now - state.activeStartedAt)
+  const activeSide = getActiveSideFromFen(state.positionFen)
+
+  return activeSide === 'white'
+    ? {
+        whiteTime: Math.max(0, whiteTime - elapsedMs),
+        blackTime,
+      }
+    : {
+        whiteTime,
+        blackTime: Math.max(0, blackTime - elapsedMs),
+      }
+}
+
+function canSideDeliverMate(boardInstance, side) {
+  const matrix = boardInstance.board()
+  const ownPieces = []
+  let opponentNonKingCount = 0
+
+  for (let rankIndex = 0; rankIndex < matrix.length; rankIndex += 1) {
+    for (let fileIndex = 0; fileIndex < matrix[rankIndex].length; fileIndex += 1) {
+      const piece = matrix[rankIndex][fileIndex]
+      if (!piece) {
+        continue
+      }
+
+      if (piece.color === side[0]) {
+        ownPieces.push({
+          type: piece.type,
+          squareColor: piece.type === 'b' ? getSquareColor(fileIndex, rankIndex) : null,
+        })
+      } else if (piece.type !== 'k') {
+        opponentNonKingCount += 1
+      }
+    }
+  }
+
+  const nonKingPieces = ownPieces.filter((piece) => piece.type !== 'k')
+  if (nonKingPieces.length === 0) {
+    return false
+  }
+
+  if (nonKingPieces.some((piece) => ['p', 'q', 'r'].includes(piece.type))) {
+    return true
+  }
+
+  const bishops = nonKingPieces.filter((piece) => piece.type === 'b')
+  const knights = nonKingPieces.filter((piece) => piece.type === 'n').length
+  const bishopColors = new Set(bishops.map((piece) => piece.squareColor))
+
+  if (bishops.length >= 1 && knights >= 1) {
+    return true
+  }
+
+  if (bishopColors.size >= 2) {
+    return true
+  }
+
+  if (bishops.length >= 2 || knights >= 2) {
+    return opponentNonKingCount > 0
+  }
+
+  return false
 }
 
 function reducer(state, action) {
@@ -54,8 +139,9 @@ function reducer(state, action) {
       return {
         ...state,
         timePreset: action.preset,
-        whiteTime: action.preset.seconds,
-        blackTime: action.preset.seconds,
+        whiteTime: action.preset.seconds * 1000,
+        blackTime: action.preset.seconds * 1000,
+        activeStartedAt: null,
       }
     case 'START_GAME':
       return {
@@ -68,8 +154,9 @@ function reducer(state, action) {
         selectedSquare: '',
         legalTargets: [],
         pendingPromotion: null,
-        whiteTime: state.timePreset.seconds,
-        blackTime: state.timePreset.seconds,
+        whiteTime: state.timePreset.seconds * 1000,
+        blackTime: state.timePreset.seconds * 1000,
+        activeStartedAt: action.startedAt,
         isEngineThinking: false,
         engineStatus: '',
         engineError: '',
@@ -133,19 +220,17 @@ function reducer(state, action) {
         pendingPromotion: null,
         whiteTime: action.whiteTime,
         blackTime: action.blackTime,
+        activeStartedAt: action.phase === 'playing' ? action.startedAt : null,
         isEngineThinking: false,
         engineStatus: action.engineStatus,
         engineError: '',
         resultMessage: action.resultMessage,
       }
-    case 'CLOCK_TICK':
-      return action.side === 'white'
-        ? { ...state, whiteTime: Math.max(0, state.whiteTime - 1) }
-        : { ...state, blackTime: Math.max(0, state.blackTime - 1) }
     case 'END_GAME':
       return {
         ...state,
         phase: 'end',
+        activeStartedAt: null,
         isEngineThinking: false,
         engineStatus: '',
         resultMessage: action.message,
@@ -166,8 +251,9 @@ function reducer(state, action) {
         selectedSquare: '',
         legalTargets: [],
         pendingPromotion: null,
-        whiteTime: state.timePreset.seconds,
-        blackTime: state.timePreset.seconds,
+        whiteTime: state.timePreset.seconds * 1000,
+        blackTime: state.timePreset.seconds * 1000,
+        activeStartedAt: action.startedAt,
         isEngineThinking: false,
         engineStatus: '',
         engineError: '',
@@ -184,8 +270,9 @@ function reducer(state, action) {
         selectedSquare: '',
         legalTargets: [],
         pendingPromotion: null,
-        whiteTime: state.timePreset.seconds,
-        blackTime: state.timePreset.seconds,
+        whiteTime: state.timePreset.seconds * 1000,
+        blackTime: state.timePreset.seconds * 1000,
+        activeStartedAt: null,
         isEngineThinking: false,
         engineStatus: '',
         engineError: '',
@@ -199,9 +286,11 @@ function reducer(state, action) {
 export function useChessGame() {
   const chessRef = useRef(new Chess())
   const requestIdRef = useRef(0)
+  const [clockNow, setClockNow] = useState(Date.now())
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState)
   const board = chessRef.current
   const players = state.players
+  const liveClocks = getLiveClockTimes(state, clockNow)
 
   const finishGameIfNeeded = (boardInstance, timeoutMessage = null) => {
     if (!boardInstance.isGameOver() && !timeoutMessage) {
@@ -213,13 +302,13 @@ export function useChessGame() {
   const startGame = () => {
     requestIdRef.current += 1
     chessRef.current = new Chess()
-    dispatch({ type: 'START_GAME', fen: chessRef.current.fen() })
+    dispatch({ type: 'START_GAME', fen: chessRef.current.fen(), startedAt: Date.now() })
   }
 
   const restartGame = () => {
     requestIdRef.current += 1
     chessRef.current = new Chess()
-    dispatch({ type: 'PLAY_AGAIN', fen: chessRef.current.fen() })
+    dispatch({ type: 'PLAY_AGAIN', fen: chessRef.current.fen(), startedAt: Date.now() })
   }
 
   const returnToSetup = () => {
@@ -248,14 +337,16 @@ export function useChessGame() {
     })
   }
 
-  const commitMove = (move, source) => {
+  const commitMove = (move) => {
+    const movedSide = board.turn() === 'w' ? 'white' : 'black'
+    const elapsedMs =
+      state.activeStartedAt === null ? 0 : Math.max(0, Date.now() - state.activeStartedAt)
+    const incrementMs = state.timePreset.increment * 1000
+    const liveWhiteTime = movedSide === 'white' ? Math.max(0, state.whiteTime - elapsedMs) : state.whiteTime
+    const liveBlackTime = movedSide === 'black' ? Math.max(0, state.blackTime - elapsedMs) : state.blackTime
     const previousFen = board.fen()
     const result = board.move(move)
     const nextFen = board.fen()
-    const whiteMoved = board.turn() === 'b'
-    const increment = state.timePreset.increment
-    const whiteTime = whiteMoved ? state.whiteTime + increment : state.whiteTime
-    const blackTime = whiteMoved ? state.blackTime : state.blackTime + increment
     const moveHistory = board.history({ verbose: true })
     const resultMessage = finishGameIfNeeded(board)
     const phase = resultMessage ? 'end' : 'playing'
@@ -267,15 +358,12 @@ export function useChessGame() {
       nextFen,
       lastMove: { from: result.from, to: result.to },
       moveHistory,
-      whiteTime,
-      blackTime,
+      whiteTime: movedSide === 'white' ? liveWhiteTime + incrementMs : liveWhiteTime,
+      blackTime: movedSide === 'black' ? liveBlackTime + incrementMs : liveBlackTime,
+      startedAt: Date.now(),
       engineStatus: '',
       resultMessage: resultMessage ?? '',
     })
-
-    if (resultMessage) {
-      dispatch({ type: 'END_GAME', message: resultMessage })
-    }
   }
 
   const getMovesFromSquare = (square) =>
@@ -312,7 +400,7 @@ export function useChessGame() {
       return true
     }
 
-    commitMove({ from: fromSquare, to: toSquare }, 'human')
+    commitMove({ from: fromSquare, to: toSquare })
     return true
   }
 
@@ -386,7 +474,6 @@ export function useChessGame() {
         to: state.pendingPromotion.to,
         promotion: piece,
       },
-      'human',
     )
   }
 
@@ -395,32 +482,32 @@ export function useChessGame() {
       return
     }
 
+    setClockNow(Date.now())
     const timer = setInterval(() => {
-      const side = board.turn() === 'w' ? 'white' : 'black'
-      dispatch({ type: 'CLOCK_TICK', side })
-    }, 1000)
+      setClockNow(Date.now())
+    }, 100)
 
     return () => clearInterval(timer)
-  }, [board, state.phase, state.positionFen, state.resultMessage])
+  }, [state.phase, state.positionFen, state.resultMessage])
 
   useEffect(() => {
     if (!['playing', 'promotion'].includes(state.phase)) {
       return
     }
 
-    if (state.whiteTime > 0 && state.blackTime > 0) {
+    if (liveClocks.whiteTime > 0 && liveClocks.blackTime > 0) {
       return
     }
 
-    const timeoutSide = state.whiteTime <= 0 ? 'white' : 'black'
+    const timeoutSide = liveClocks.whiteTime <= 0 ? 'white' : 'black'
     const winnerSide = timeoutSide === 'white' ? 'black' : 'white'
-    const timeoutMessage = board.isInsufficientMaterial()
+    const timeoutMessage = !canSideDeliverMate(board, winnerSide)
       ? `Draw: ${players[timeoutSide].name} flagged and ${players[winnerSide].name} has insufficient material.`
       : `${players[winnerSide].name} wins on time.`
 
     requestIdRef.current += 1
     dispatch({ type: 'END_GAME', message: timeoutMessage })
-  }, [board, players, state.blackTime, state.phase, state.whiteTime])
+  }, [board, liveClocks.blackTime, liveClocks.whiteTime, players, state.phase])
 
   useEffect(() => {
     if (state.phase !== 'playing' || state.isEngineThinking || state.resultMessage) {
@@ -430,7 +517,9 @@ export function useChessGame() {
     const currentSide = board.turn() === 'w' ? 'white' : 'black'
     const player = players[currentSide]
     if (!isBotMode(player.mode)) {
-      dispatch({ type: 'SET_ENGINE_STATUS', status: '' })
+      if (state.engineStatus) {
+        dispatch({ type: 'SET_ENGINE_STATUS', status: '' })
+      }
       return
     }
 
@@ -441,7 +530,8 @@ export function useChessGame() {
       status: `${player.name || player.engine} is thinking...`,
     })
 
-    const currentTime = currentSide === 'white' ? state.whiteTime : state.blackTime
+    const currentTime = getLiveClockTimes(state, Date.now())
+    const currentTimeMs = currentSide === 'white' ? currentTime.whiteTime : currentTime.blackTime
 
     const fetchMove = async () => {
       try {
@@ -450,7 +540,7 @@ export function useChessGame() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             FenString: board.fen(),
-            TimeRem: currentTime,
+            TimeRem: currentTimeMs / 1000,
             Increment: state.timePreset.increment,
             Mode: player.engine,
           }),
@@ -476,7 +566,6 @@ export function useChessGame() {
             to: engineMove.slice(2, 4),
             promotion: engineMove[4] || undefined,
           },
-          'engine',
         )
       } catch (error) {
         if (requestIdRef.current !== requestId) {
@@ -494,13 +583,12 @@ export function useChessGame() {
   }, [
     board,
     players,
-    state.blackTime,
+    state.engineStatus,
     state.isEngineThinking,
     state.phase,
     state.positionFen,
     state.resultMessage,
     state.timePreset.increment,
-    state.whiteTime,
   ])
 
   const canStart =
@@ -516,6 +604,8 @@ export function useChessGame() {
         legalTargets: state.legalTargets,
         checkSquare: getCheckSquare(state.positionFen),
       }),
+      whiteTime: liveClocks.whiteTime,
+      blackTime: liveClocks.blackTime,
     },
     actions: {
       clearSelection,
