@@ -301,7 +301,7 @@ def _backpropagate(node: Node, result: float, maximising_color: chess.Color) -> 
         if current.board.turn == maximising_color:
             current.value += result
         else:
-            current.value += (1.0 - result) if result >= 0 else -result
+            current.value -= result
         current = current.parent
 
 
