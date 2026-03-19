@@ -1,0 +1,34 @@
+name: Hugging Face Sync
+
+on:
+    push:
+        branches: [Deploy]
+
+    workflow_dispatch:
+
+jobs:
+    HuggingFaceSync:
+        runs-on: ubuntu-latest
+
+        environment:
+            name: Deployment
+            url: https://huggingface.co/spaces/nkminion/ChessBots
+
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                fetch-depth: 0
+                lfs: true
+
+            - name: Hub Push
+              env:
+                HuggingToken: ${{ secrets.HUGGINGFACETOKEN }}
+                HuggingUser: nkminion
+                HuggingSpace: ChessBots
+              run: |
+                git config --global user.email "github-actions[bot]@users.noreply.github.com"
+                git config --global user.name "github-actions[bot]"
+                git remote add space https://$HuggingUser:$HuggingToken@huggingface.co/spaces/$HuggingUser/$HuggingSpace
+                git push --force space HEAD:main
+
+

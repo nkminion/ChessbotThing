@@ -535,7 +535,7 @@ export function useChessGame() {
 
     const fetchMove = async () => {
       try {
-        const response = await fetch('http://localhost:8000/engine/move', {
+        const response = await fetch('/engine/move', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

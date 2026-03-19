@@ -451,7 +451,7 @@ hist = [Position(initial, 0, (True, True), (True, True), 0, 0)]
 
 # minifier-hide start
 if __name__ == '__main__':
-    import sys, sunfish_uci
+    import sys, BackEnd.sunfish_uci as sunfish_uci
     sunfish_uci.run(sys.modules[__name__], hist[-1])
     sys.exit()
 # minifier-hide end

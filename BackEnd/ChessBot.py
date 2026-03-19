@@ -19,7 +19,7 @@ if torch.cuda.is_available():
 else:
 	print("PyTorch is using the CPU")
 	device = torch.device("cpu")
-	MaxBatchSize = 64
+	MaxBatchSize = 32
 
 print(f"Selected Device: {device}")
 

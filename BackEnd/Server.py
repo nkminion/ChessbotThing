@@ -1,25 +1,20 @@
 from fastapi import FastAPI
 from fastapi import HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ChessBot import GetBestMove
 from MCTSBot import GetBestMove as GetBestMoveMCTS
-import sunfish
-import sunfish_uci
+import sunfish as sunfish
+import sunfish_uci as sunfish_uci
 import time
 import chess
+import os
+
+AccessibleCores = len(os.sched_getaffinity(0))
+print(f'Cores Available: {AccessibleCores}')
 
 sunfish_uci.sunfish = sunfish
 
 App = FastAPI()
-
-App.add_middleware(
-	CORSMiddleware,
-	allow_origins=['http://localhost:5173'], # I should fix this later :C
-	allow_credentials=True,
-	allow_methods=['POST'],
-	allow_headers=['*'],
-)
 
 class MoveReq(BaseModel):
 	FenString: str
