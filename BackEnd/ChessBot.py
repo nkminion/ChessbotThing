@@ -386,7 +386,7 @@ class ChessBot:
 		AbsoluteMax = (RemainingTime * 0.8) - 0.1
 		FinalTime = min(TargetTime,AbsoluteMax)
 
-		return max(FinalTime,0.1)
+		return min(FinalTime,20)
 	
 
 GlobalBot = ChessBot()

@@ -1,7 +1,7 @@
 #!bin/bash
 
 cd /app/backend
-uvicorn Server:App --host 127.0.0.1 --port 8000 &
+uvicorn Server:App --host 127.0.0.1 --port 8000 --timeout-keep-alive 120 &
 
 cd /app/frontend
 npm run dev &
